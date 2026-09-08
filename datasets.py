@@ -872,7 +872,6 @@ def generate_location_data(
     *,
     num_measures: int,
     num_points: int,
-    distribution: str,
     beta: torch.Tensor,
     Sigma_Z: torch.Tensor,
     Sigma_X: torch.Tensor,
@@ -910,19 +909,6 @@ def generate_location_data(
         "latent"
         "dataset_config"
     """
-
-    distribution = distribution.lower()
-
-    if distribution == "t":
-        distribution = "student_t"
-
-    if distribution not in {
-        "gaussian",
-        "student_t",
-    }:
-        raise ValueError(
-            "distribution must be 'gaussian' or 'student_t'."
-        )
 
     beta = torch.as_tensor(
         beta,
@@ -975,7 +961,7 @@ def generate_location_data(
             "num_points must be positive."
         )
 
-    if distribution == "student_t" and df <= 2:
+    if df <= 2:
         raise ValueError(
             "df must be greater than 2."
         )
@@ -1035,8 +1021,9 @@ def generate_location_data(
 
         target_mean = B0 @ z_i
 
-        if distribution == "gaussian":
+        if np.isinf(df):
 
+            # Gaussian case
             eps_x = torch.randn(
                 num_points,
                 d,
@@ -1076,9 +1063,9 @@ def generate_location_data(
                 num_samples=num_points,
                 generator=generator,
             )
+            
 
     dataset_config = {
-            "distribution" : distribution,
             "num_measures": num_measures,
             "beta": beta,
             "Sigma_Z": Sigma_Z,

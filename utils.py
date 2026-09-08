@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from pathlib import Path
 from typing import Any
 
@@ -144,6 +145,15 @@ def bayes_optimal_target_mean(
     )
 
     return B0 @ posterior_mean_Z
+
+def get_df_label(df: float) -> str:
+    
+    if np.isinf(df):
+        df_label = "gaussian"
+    else:
+        df_label = f"t_df{df:g}"
+    
+    return df_label
 
 def load_data(
     path: str | Path,
