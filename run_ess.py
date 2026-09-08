@@ -396,6 +396,8 @@ def main() -> None:
     parser.add_argument("--device", type=str, default=None)
 
     args = parser.parse_args()
+    
+    print("Hi", flush=True)
 
     print("Starting run_ess.py", flush=True)
 
