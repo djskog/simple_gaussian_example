@@ -562,8 +562,8 @@ def main() -> None:
             )
     )
     
-    source = fixed_data["source"].float().to(device)
-    target = fixed_data["target"].float().to(device)
+    source = fixed_data["source"].float()
+    target = fixed_data["target"].float()
     dataset_config = fixed_data["dataset_config"]
 
     print(
