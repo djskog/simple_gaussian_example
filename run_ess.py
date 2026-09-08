@@ -50,6 +50,7 @@ def build_subspace_model(
     sigma_y = torch.as_tensor(
         dataset_config["Sigma_Y"],
         dtype=torch.float32,
+        device = device,
     )
 
     base_model = GaussianTransformer(
