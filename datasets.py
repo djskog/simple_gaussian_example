@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from torch.utils.data import Dataset
+from utils import _sample_multivariate_t
 
 
 # ---------------------------------------------------------------------------
@@ -865,3 +866,231 @@ class StudentTLocationDataset(Dataset):
         Z : [num_measures, d]
         """
         return self.X, self.Y, self.Z
+
+
+def generate_location_data(
+    *,
+    num_measures: int,
+    num_points: int,
+    distribution: str,
+    beta: torch.Tensor,
+    Sigma_Z: torch.Tensor,
+    Sigma_X: torch.Tensor,
+    Sigma_Y: torch.Tensor,
+    B0: torch.Tensor,
+    df: float = 5.0,
+    seed: int | None = None,
+):
+    """
+    Generate a fixed location M2M dataset.
+
+    Latent model:
+
+        Z_i ~ N(beta, Sigma_Z)
+
+    Gaussian observations:
+
+        X_ij | Z_i ~ N(Z_i, Sigma_X)
+        Y_ij | Z_i ~ N(B0 Z_i, Sigma_Y)
+
+    Student-t observations:
+
+        X_ij | Z_i ~ t_df(Z_i, Sigma_X)
+        Y_ij | Z_i ~ t_df(B0 Z_i, Sigma_Y)
+
+    For the Student-t case, Sigma_X and Sigma_Y denote the covariance
+    matrices of the Student-t distributions, not their scale matrices.
+
+    Returns
+    -------
+    dict with keys:
+
+        "source"
+        "target"
+        "latent"
+        "dataset_config"
+    """
+
+    distribution = distribution.lower()
+
+    if distribution == "t":
+        distribution = "student_t"
+
+    if distribution not in {
+        "gaussian",
+        "student_t",
+    }:
+        raise ValueError(
+            "distribution must be 'gaussian' or 'student_t'."
+        )
+
+    beta = torch.as_tensor(
+        beta,
+        dtype=torch.float32,
+    )
+
+    Sigma_Z = torch.as_tensor(
+        Sigma_Z,
+        dtype=torch.float32,
+    )
+
+    Sigma_X = torch.as_tensor(
+        Sigma_X,
+        dtype=torch.float32,
+    )
+
+    Sigma_Y = torch.as_tensor(
+        Sigma_Y,
+        dtype=torch.float32,
+    )
+
+    B0 = torch.as_tensor(
+        B0,
+        dtype=torch.float32,
+    )
+
+    d = beta.numel()
+
+    expected_shape = (d, d)
+
+    for name, matrix in [
+        ("Sigma_Z", Sigma_Z),
+        ("Sigma_X", Sigma_X),
+        ("Sigma_Y", Sigma_Y),
+        ("B0", B0),
+    ]:
+        if tuple(matrix.shape) != expected_shape:
+            raise ValueError(
+                f"{name} must have shape {expected_shape}, "
+                f"got {tuple(matrix.shape)}."
+            )
+
+    if num_measures < 1:
+        raise ValueError(
+            "num_measures must be positive."
+        )
+
+    if num_points < 1:
+        raise ValueError(
+            "num_points must be positive."
+        )
+
+    if distribution == "student_t" and df <= 2:
+        raise ValueError(
+            "df must be greater than 2."
+        )
+
+    # One generator controls the entire experiment.
+    generator = torch.Generator()
+
+    if seed is not None:
+        generator.manual_seed(seed)
+
+    # Cholesky factors.
+    Lz = torch.linalg.cholesky(
+        Sigma_Z
+    )
+
+    Lx = torch.linalg.cholesky(
+        Sigma_X
+    )
+
+    Ly = torch.linalg.cholesky(
+        Sigma_Y
+    )
+
+    # -----------------------------------------------------------------------
+    # Latent populations
+    # -----------------------------------------------------------------------
+
+    eps_z = torch.randn(
+        num_measures,
+        d,
+        generator=generator,
+    )
+
+    latent = (
+        beta.unsqueeze(0)
+        + eps_z @ Lz.T
+    )
+
+    # -----------------------------------------------------------------------
+    # Observations
+    # -----------------------------------------------------------------------
+
+    source = torch.empty(
+        num_measures,
+        num_points,
+        d,
+        dtype=torch.float32,
+    )
+
+    target = torch.empty_like(
+        source
+    )
+
+    for i in range(num_measures):
+
+        z_i = latent[i]
+
+        target_mean = B0 @ z_i
+
+        if distribution == "gaussian":
+
+            eps_x = torch.randn(
+                num_points,
+                d,
+                generator=generator,
+            )
+
+            eps_y = torch.randn(
+                num_points,
+                d,
+                generator=generator,
+            )
+
+            source[i] = (
+                z_i.unsqueeze(0)
+                + eps_x @ Lx.T
+            )
+
+            target[i] = (
+                target_mean.unsqueeze(0)
+                + eps_y @ Ly.T
+            )
+
+        else:
+
+            source[i] = _sample_multivariate_t(
+                mean=z_i,
+                covariance=Sigma_X,
+                df=df,
+                num_samples=num_points,
+                generator=generator,
+            )
+
+            target[i] = _sample_multivariate_t(
+                mean=target_mean,
+                covariance=Sigma_Y,
+                df=df,
+                num_samples=num_points,
+                generator=generator,
+            )
+
+    dataset_config = {
+            "distribution" : distribution,
+            "num_measures": num_measures,
+            "beta": beta,
+            "Sigma_Z": Sigma_Z,
+            "Sigma_X": Sigma_X,
+            "Sigma_Y": Sigma_Y,
+            "B0": B0,
+            "df": df,
+        }
+
+    return {
+        "source": source,
+        "target": target,
+        "latent": latent,
+        "dataset_config": dataset_config,
+    }
