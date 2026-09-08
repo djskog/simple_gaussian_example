@@ -108,8 +108,8 @@ def make_log_likelihood(
                 target,
                 batch_size,
             ):
-                source_batch = source_batch.to(device)
-                target_batch = target_batch.to(device)
+                source_batch = source_batch
+                target_batch = target_batch
 
                 mean = subspace_model.base_model(source_batch)
 
@@ -455,8 +455,8 @@ def main() -> None:
     # Load tensors
     # -------------------------------------------------------------
 
-    source = fixed_data["source"].float()
-    target = fixed_data["target"].float()
+    source = fixed_data["source"].float().to(device)
+    target = fixed_data["target"].float().to(device)
 
     print(
         f"Source shape: {tuple(source.shape)}",
