@@ -1,0 +1,17 @@
+{
+  "posterior_means_shape": [
+    500,
+    10,
+    2
+  ],
+  "predictive_mean_shape": [
+    10,
+    2
+  ],
+  "predictive_std_shape": [
+    10,
+    2
+  ],
+  "num_test_measures": 10,
+  "num_posterior_models": 500
+}
