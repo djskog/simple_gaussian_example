@@ -16,25 +16,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from models.gaussian_transformer import GaussianTransformer
 from models.subspace_model import SubspaceModel
-
-
-# ---------------------------------------------------------------------------
-# Loading
-# ---------------------------------------------------------------------------
-
-def load_checkpoint(
-    path: Path,
-) -> dict[str, Any]:
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Checkpoint does not exist: {path}"
-        )
-
-    return torch.load(
-        path,
-        map_location="cpu",
-        weights_only=False,
-    )
+from utils import load_data
 
 
 def build_subspace_model(
@@ -302,8 +284,15 @@ def main() -> None:
         flush=True,
     )
 
-    pca_checkpoint = load_checkpoint(
-        args.pca
+    pca_checkpoint = load_data(
+        args.pca,
+        required_keys={
+            "swa_mean",
+            "pca_basis",
+            "parameter_info",
+            "model_config",
+            "dataset_config",
+        },
     )
 
     print(
@@ -316,8 +305,11 @@ def main() -> None:
         flush=True,
     )
 
-    posterior = load_checkpoint(
-        args.posterior
+    posterior = load_data(
+        args.posterior,
+        required_keys={
+            "phi_samples",
+        },
     )
 
     print(
@@ -330,8 +322,11 @@ def main() -> None:
         flush=True,
     )
 
-    test_data = load_checkpoint(
-        args.test_data
+    test_data = load_data(
+        args.test_data,
+        required_keys={
+            "source_test",
+        },
     )
 
     print(

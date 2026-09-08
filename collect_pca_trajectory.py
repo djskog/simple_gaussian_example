@@ -23,7 +23,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from models.gaussian_transformer import GaussianTransformer
-from utils import gaussian_measure_nll
+from utils import gaussian_measure_nll, load_data
 
 
 # ---------------------------------------------------------------------------
@@ -66,70 +66,6 @@ def save_json(path: Path, data: dict[str, Any]) -> None:
         json.dumps(data, indent=2),
         encoding="utf-8",
     )
-
-
-# ---------------------------------------------------------------------------
-# Fixed dataset
-# ---------------------------------------------------------------------------
-
-def load_fixed_dataset(
-    path: str | Path,
-) -> tuple[
-    torch.Tensor,
-    torch.Tensor,
-    torch.Tensor,
-    dict[str, Any],
-]:
-    """
-    Load one fixed training dataset
-
-        D = {(X_i, Y_i)}_{i=1}^n
-
-    from disk.
-
-    The tensors are expected to have shapes
-
-        source : [n, N, d]
-        target : [n, N, d]
-        latent : [n, d]
-    """
-
-    path = Path(path)
-
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Fixed dataset does not exist: {path}"
-        )
-
-    checkpoint = torch.load(
-        path,
-        map_location="cpu",
-        weights_only=False,
-    )
-
-    required = {
-        "source",
-        "target",
-        "latent",
-        "dataset_config",
-    }
-
-    missing = required.difference(checkpoint.keys())
-
-    if missing:
-        raise KeyError(
-            "Fixed-data file is missing keys: "
-            + ", ".join(sorted(missing))
-        )
-
-    return (
-        checkpoint["source"].float(),
-        checkpoint["target"].float(),
-        checkpoint["latent"].float(),
-        checkpoint["dataset_config"],
-    )
-
-
 # ---------------------------------------------------------------------------
 # Pretraining on fixed D
 # ---------------------------------------------------------------------------
@@ -619,17 +555,24 @@ def main() -> None:
         flush=True,
     )
 
-    source, target, latent, dataset_config = (
-        load_fixed_dataset(args.fixed_data)
+    fixed_data = (
+        load_data(
+            args.fixed_data, 
+            required_keys={"source", "target", "dataset_config"},
+            )
     )
+    
+    source = fixed_data["source"].float().to(device)
+    target = fixed_data["target"].float().to(device)
+    dataset_config = fixed_data["dataset_config"]
 
     print(
-        f"source shape: {tuple(source.shape)}",
+        f"Source shape: {tuple(source.shape)}",
         flush=True,
     )
 
     print(
-        f"target shape: {tuple(target.shape)}",
+        f"Target shape: {tuple(target.shape)}",
         flush=True,
     )
 

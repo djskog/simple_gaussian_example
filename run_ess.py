@@ -16,7 +16,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from models.gaussian_transformer import GaussianTransformer
 from models.subspace_model import SubspaceModel
-from utils import gaussian_measure_nll
+from utils import gaussian_measure_nll, load_data
 
 
 def set_seed(seed: int) -> None:
@@ -25,19 +25,6 @@ def set_seed(seed: int) -> None:
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
-
-
-def load_fixed_data(path: Path) -> dict[str, Any]:
-    data = torch.load(path, map_location="cpu", weights_only=False)
-
-    required = {"source", "target", "dataset_config"}
-    missing = required.difference(data.keys())
-    if missing:
-        raise KeyError(
-            "Fixed-data file is missing: "
-            + ", ".join(sorted(missing))
-        )
-    return data
 
 
 def build_subspace_model(
@@ -422,8 +409,9 @@ def main() -> None:
         flush=True,
     )
 
-    fixed_data = load_fixed_data(
-        args.fixed_data
+    fixed_data = load_data(
+        args.fixed_data,
+        required_keys={"source", "target", "dataset_config"}
     )
 
     print(
