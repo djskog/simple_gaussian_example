@@ -106,7 +106,7 @@ def compile_prediction_data(
         # ---------------------------------------------------------------
 
         if source is None:
-
+            print(result.keys(), flush=True)
             source = result["source"][:n_plots]
             latent = result["latent"][:n_plots]
             B0 = result["B0"]
