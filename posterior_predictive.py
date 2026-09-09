@@ -326,6 +326,7 @@ def main() -> None:
         args.test_data,
         required_keys={
             "source",
+            "latent"
         },
     )
 
