@@ -122,9 +122,7 @@ def compile_prediction_data(
         # so slice the SECOND dimension to select test measures.
         # ---------------------------------------------------------------
 
-        posterior_means = result[
-            "posterior_means"
-        ][:, :n_plots, :]
+        posterior_means = result["posterior_means"][:, :n_plots, :]
 
         results.append(
             posterior_means
@@ -205,13 +203,16 @@ def plot_predictive_df_sweep(
     )
 
     true_means = latent @ dataset_config["B0"].T
-    bayes_means = bayes_optimal_target_mean(
-        X = source,
-        beta = dataset_config["beta"],
-        Sigma_Z = dataset_config["Sigma_Z"],  
-        Sigma_X = dataset_config["Sigma_X"],
-        B0 = dataset_config["B0"],
-    )
+    bayes_means = torch.stack([
+        bayes_optimal_target_mean(
+            X=source[i],
+            beta=dataset_config["beta"],
+            Sigma_Z=dataset_config["Sigma_Z"],
+            Sigma_X=dataset_config["Sigma_X"],
+            B0=dataset_config["B0"],
+        )
+        for i in range(n_plots)
+    ])
     # -----------------------------------------------------------------------
     # Plot one figure for each test measure
     # -----------------------------------------------------------------------
