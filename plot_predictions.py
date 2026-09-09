@@ -13,7 +13,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from utils import get_df_label
+from utils import get_df_label, bayes_optimal_target_mean
 
 
 # ---------------------------------------------------------------------------
@@ -59,7 +59,8 @@ def compile_prediction_data(
 ) -> tuple[
     torch.Tensor,
     torch.Tensor,
-    torch.Tensor,
+    dict,
+    torch.Tensor
 ]:
     """
     Load all posterior predictive results and organise them by test measure.
@@ -85,7 +86,7 @@ def compile_prediction_data(
 
     source = None
     latent = None
-    B0 = None
+    dataset_config = None
 
     print(
         "Loading posterior predictive results...",
@@ -103,13 +104,13 @@ def compile_prediction_data(
         # Common test data
         # ---------------------------------------------------------------
 
-        if source is None:
+        if dataset_config is None:
 
             source = result["source"][:n_plots]
 
             latent = result["latent"][:n_plots]
 
-            B0 = result["B0"]
+            dataset_config = result["dataset_config"]
 
         # ---------------------------------------------------------------
         # IMPORTANT:
@@ -160,18 +161,11 @@ def compile_prediction_data(
         3,
     )
 
-    # True population means:
-    #
-    #     B0 Z_i
-    #
-
-    true_means = (
-        latent @ B0.T
-    )
 
     return (
         source,
-        true_means,
+        latent,
+        dataset_config,
         posterior_means,
     )
 
@@ -204,26 +198,30 @@ def plot_predictive_df_sweep(
         exist_ok=True,
     )
 
-    (
-        source,
-        true_means,
-        posterior_means,
-    ) = compile_prediction_data(
+    source, latent, dataset_config, posterior_means = compile_prediction_data(
         checkpoint_dir=checkpoint_dir,
         dfs=dfs,
         n_plots=n_plots,
     )
 
+    true_means = latent @ dataset_config["B0"].T
+    bayes_means = bayes_optimal_target_mean(
+        X = source,
+        beta = dataset_config["beta"],
+        Sigma_Z = dataset_config["Sigma_Z"],  
+        Sigma_X = dataset_config["Sigma_X"],
+        B0 = dataset_config["B0"],
+    )
     # -----------------------------------------------------------------------
     # Plot one figure for each test measure
     # -----------------------------------------------------------------------
 
     for measure_idx in range(n_plots):
 
-        true_mean = (
-            true_means[measure_idx]
-            .numpy()
-        )
+        true_mean = true_means[measure_idx].numpy()
+    
+        
+        bayes_mean = bayes_means[measure_idx].numpy()
 
         # ================================================================
         # Collect samples from all dfs
@@ -284,21 +282,25 @@ def plot_predictive_df_sweep(
         x_low = min(
             x_low,
             true_mean[0],
+            bayes_mean[0],
         )
 
         x_high = max(
             x_high,
             true_mean[0],
+            bayes_mean[0],
         )
 
         y_low = min(
             y_low,
             true_mean[1],
+            bayes_mean[1],
         )
 
         y_high = max(
             y_high,
             true_mean[1],
+            bayes_mean[1],
         )
 
         x_range = x_high - x_low
@@ -431,6 +433,17 @@ def plot_predictive_df_sweep(
                 color="white",
                 zorder=11,
             )
+            
+            ax.scatter(
+                bayes_mean[0],
+                bayes_mean[1],
+                s=140,
+                marker="*",
+                color="orange",
+                edgecolor="black",
+                linewidth=0.7,
+                zorder=12,
+            )
 
             # ------------------------------------------------------------
             # Title
@@ -491,6 +504,17 @@ def plot_predictive_df_sweep(
             linewidths=3,
             color="white",
             label=r"True $B_0 Z^0$",
+        )
+        
+        axes[0].scatter(
+            [],
+            [],
+            s=140,
+            marker="*",
+            color="orange",
+            edgecolor="black",
+            linewidth=0.7,
+            label=r"Bayes optimal $E[Y^0\mid X^0]$",
         )
 
         fig.legend(

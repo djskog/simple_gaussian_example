@@ -348,7 +348,7 @@ def main() -> None:
             "latent"
         ].float()
     
-    B0 = test_data["dataset_config"]["B0"]
+    dataset_config = test_data["dataset_config"]
 
     phi_samples = posterior[
         "phi_samples"
@@ -435,7 +435,7 @@ def main() -> None:
         "selected_phi_indices": phi_indices,
         "source": source,
         "latent": latent,
-        "B0": B0,
+        "dataset_config": dataset_config,
         "pca_checkpoint": str(
             args.pca.resolve()
         ),
