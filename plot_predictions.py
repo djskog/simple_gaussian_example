@@ -424,20 +424,10 @@ def plot_predictive_df_sweep(
             # ------------------------------------------------------------
             # True population mean
             # ------------------------------------------------------------
-
+            
             ax.scatter(
                 true_mean[0],
                 true_mean[1],
-                s=160,
-                marker="+",
-                linewidths=3,
-                color="white",
-                zorder=11,
-            )
-            
-            ax.scatter(
-                bayes_mean[0],
-                bayes_mean[1],
                 s=140,
                 marker="*",
                 color="orange",
@@ -446,6 +436,16 @@ def plot_predictive_df_sweep(
                 zorder=12,
             )
 
+            ax.scatter(
+                bayes_mean[0],
+                bayes_mean[1],
+                s=160,
+                marker="+",
+                linewidths=3,
+                color="white",
+                zorder=11,
+            )
+            
             # ------------------------------------------------------------
             # Title
             # ------------------------------------------------------------
@@ -496,16 +496,6 @@ def plot_predictive_df_sweep(
             color="red",
             label="Transformer posterior mean",
         )
-
-        axes[0].scatter(
-            [],
-            [],
-            s=160,
-            marker="+",
-            linewidths=3,
-            color="white",
-            label=r"True $B_0 Z^0$",
-        )
         
         axes[0].scatter(
             [],
@@ -515,11 +505,22 @@ def plot_predictive_df_sweep(
             color="orange",
             edgecolor="black",
             linewidth=0.7,
-            label=r"Bayes optimal $E[Y^0\mid X^0]$",
+            label=r"True $B_0 Z^0$",
         )
 
+        axes[0].scatter(
+            [],
+            [],
+            s=160,
+            marker="+",
+            linewidths=3,
+            color="white",
+            label=r"Bayes optimal $E[Y^0\mid X^0]$",
+        )
+        
+
         fig.legend(
-            loc="upper center",
+            loc="lower center",
             ncol=2,
             bbox_to_anchor=(
                 0.5,
