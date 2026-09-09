@@ -589,6 +589,7 @@ def main() -> None:
         for df in args.dfs
     ]
 
+    print (dfs , flush=True)
     plot_predictive_df_sweep(
         checkpoint_dir=args.checkpoint_dir,
         figure_dir=args.figure_dir,
