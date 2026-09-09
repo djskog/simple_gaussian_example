@@ -381,11 +381,13 @@ def main() -> None:
     )
 
     args = parser.parse_args()
+    
+    dfs = [float(df) for df in args.dfs]
 
     plot_predictive_df_sweep(
         checkpoint_dir=args.checkpoint_dir,
         figure_dir=args.figure_dir,
-        dfs=args.dfs,
+        dfs=dfs,
         n_plots=args.n_plots,
         bins=args.bins,
         dpi=args.dpi,
