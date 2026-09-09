@@ -326,7 +326,8 @@ def main() -> None:
         args.test_data,
         required_keys={
             "source",
-            "latent"
+            "latent",
+            "dataset_config",
         },
     )
 
@@ -346,6 +347,8 @@ def main() -> None:
     latent = test_data[
             "latent"
         ].float()
+    
+    B0 = test_data["dataset_config"]["B0"]
 
     phi_samples = posterior[
         "phi_samples"
@@ -432,6 +435,7 @@ def main() -> None:
         "selected_phi_indices": phi_indices,
         "source": source,
         "latent": latent,
+        "B0": B0,
         "pca_checkpoint": str(
             args.pca.resolve()
         ),
