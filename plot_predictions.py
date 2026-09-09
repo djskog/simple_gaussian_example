@@ -67,20 +67,18 @@ def compile_prediction_data(
     Returns
     -------
     source:
-        [n_test, n_points, d]
+        [n_plots, n_points, d]
 
     true_means:
-        [n_test, d]
+        [n_plots, d]
 
     posterior_means:
-        [n_test, n_df, S, d]
-
-    where
+        [n_plots, n_df, S, d]
 
         posterior_means[i, j, s, :]
-
-    is the predicted target mean for test measure i,
-    training-data df dfs[j], and posterior sample s.
+        = prediction for test measure i,
+          training-data df dfs[j],
+          posterior sample s.
     """
 
     results = []
@@ -106,17 +104,26 @@ def compile_prediction_data(
         # ---------------------------------------------------------------
 
         if source is None:
+
             source = result["source"][:n_plots]
+
             latent = result["latent"][:n_plots]
+
             B0 = result["B0"]
 
         # ---------------------------------------------------------------
-        # Posterior predictions
+        # IMPORTANT:
+        #
+        # posterior_means has shape
+        #
+        #     [S, n_test, d]
+        #
+        # so slice the SECOND dimension to select test measures.
         # ---------------------------------------------------------------
 
         posterior_means = result[
             "posterior_means"
-        ][:n_plots]
+        ][:, :n_plots, :]
 
         results.append(
             posterior_means
@@ -127,14 +134,15 @@ def compile_prediction_data(
             "No dfs were supplied."
         )
 
-    # Each element of results has shape:
+    # Each result:
     #
-    #     [n_test, S, d]
+    #     [S, n_plots, d]
     #
     # Stack:
     #
-    #     [n_df, n_test, S, d]
+    #     [n_df, S, n_plots, d]
     #
+
     posterior_means = torch.stack(
         results,
         dim=0,
@@ -142,12 +150,13 @@ def compile_prediction_data(
 
     # Reorder:
     #
-    #     [n_test, n_df, S, d]
+    #     [n_plots, n_df, S, d]
     #
+
     posterior_means = posterior_means.permute(
-        1,
-        0,
         2,
+        0,
+        1,
         3,
     )
 
@@ -155,6 +164,7 @@ def compile_prediction_data(
     #
     #     B0 Z_i
     #
+
     true_means = (
         latent @ B0.T
     )
