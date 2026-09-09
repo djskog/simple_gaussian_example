@@ -216,7 +216,7 @@ def main() -> None:
         required=True,
         help=(
             "Test-data checkpoint containing source and optionally "
-            "target_test and latent_test."
+            "target and latent."
         ),
     )
 
@@ -342,14 +342,10 @@ def main() -> None:
     source = test_data[
         "source"
     ].float()
-
-    target_test = test_data.get(
-        "target"
-    )
-
-    latent_test = test_data.get(
-        "latent"
-    )
+    
+    latent = test_data[
+            "latent"
+        ].float()
 
     phi_samples = posterior[
         "phi_samples"
@@ -435,8 +431,7 @@ def main() -> None:
         "predictive_std": predictive_std,
         "selected_phi_indices": phi_indices,
         "source": source,
-        "target_test": target_test,
-        "latent_test": latent_test,
+        "latent": latent,
         "pca_checkpoint": str(
             args.pca.resolve()
         ),
