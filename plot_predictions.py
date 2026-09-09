@@ -106,7 +106,6 @@ def compile_prediction_data(
         # ---------------------------------------------------------------
 
         if source is None:
-            print(result.keys(), flush=True)
             source = result["source"][:n_plots]
             latent = result["latent"][:n_plots]
             B0 = result["B0"]
@@ -589,7 +588,6 @@ def main() -> None:
         for df in args.dfs
     ]
 
-    print (dfs , flush=True)
     plot_predictive_df_sweep(
         checkpoint_dir=args.checkpoint_dir,
         figure_dir=args.figure_dir,
