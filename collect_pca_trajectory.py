@@ -11,6 +11,7 @@ from typing import Any
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, TensorDataset
+import matplotlib.pyplot as plt
 
 
 # ---------------------------------------------------------------------------
@@ -153,6 +154,293 @@ def pretrain_model(
 
     return history
 
+# ---------------------------------------------------------------------------
+# Plot pretrained model predictions
+# ---------------------------------------------------------------------------
+
+@torch.no_grad()
+def plot_pretrained_predictions(
+    model: GaussianTransformer,
+    source: torch.Tensor,
+    target: torch.Tensor,
+    latent: torch.Tensor,
+    B0: torch.Tensor,
+    device: torch.device,
+    output_path: Path,
+) -> None:
+    """
+    Plot pretrained-model predictions for the first four training measures.
+
+    Each panel shows:
+        - source point cloud X_i
+        - target point cloud Y_i
+        - predicted target mean m(X_i)
+        - empirical target mean
+        - true population mean B0 Z_i
+    """
+
+    model.eval()
+
+    n_examples = min(
+        4,
+        source.shape[0],
+    )
+
+    # -----------------------------------------------------------------------
+    # Predict first four training measures
+    # -----------------------------------------------------------------------
+
+    source_batch = source[
+        :n_examples
+    ].to(device)
+
+    predicted_means = (
+        model(source_batch)
+        .cpu()
+    )
+
+    source_plot = source[
+        :n_examples
+    ].cpu()
+
+    target_plot = target[
+        :n_examples
+    ].cpu()
+
+    latent_plot = latent[
+        :n_examples
+    ].cpu()
+
+    B0 = B0.cpu()
+
+    # Empirical target means
+    empirical_target_means = (
+        target_plot.mean(dim=1)
+    )
+
+    # True population means B0 Z_i
+    true_population_means = (
+        latent_plot @ B0.T
+    )
+
+    # -----------------------------------------------------------------------
+    # Numerical diagnostics
+    # -----------------------------------------------------------------------
+
+    prediction_error_truth = (
+        torch.linalg.vector_norm(
+            predicted_means
+            - true_population_means,
+            dim=1,
+        )
+    )
+
+    prediction_error_empirical = (
+        torch.linalg.vector_norm(
+            predicted_means
+            - empirical_target_means,
+            dim=1,
+        )
+    )
+
+    print(
+        "\nPretrained-model diagnostic:",
+        flush=True,
+    )
+
+    for i in range(n_examples):
+
+        print(
+            f"Measure {i}: "
+            f"||prediction - B0 Z|| = "
+            f"{prediction_error_truth[i].item():.6f}"
+            f" | "
+            f"||prediction - Ybar|| = "
+            f"{prediction_error_empirical[i].item():.6f}",
+            flush=True,
+        )
+
+    # -----------------------------------------------------------------------
+    # Plot
+    # -----------------------------------------------------------------------
+
+    if source.shape[-1] != 2:
+        raise ValueError(
+            "Pretrained prediction plot currently requires d=2."
+        )
+
+    fig, axes = plt.subplots(
+        2,
+        2,
+        figsize=(10, 10),
+    )
+
+    axes = axes.flatten()
+
+    for i in range(n_examples):
+
+        ax = axes[i]
+
+        X = source_plot[i].numpy()
+        Y = target_plot[i].numpy()
+
+        predicted_mean = (
+            predicted_means[i]
+            .numpy()
+        )
+
+        empirical_mean = (
+            empirical_target_means[i]
+            .numpy()
+        )
+
+        true_mean = (
+            true_population_means[i]
+            .numpy()
+        )
+
+        # ---------------------------------------------------------------
+        # Point clouds
+        # ---------------------------------------------------------------
+
+        ax.scatter(
+            X[:, 0],
+            X[:, 1],
+            s=15,
+            alpha=0.35,
+            label="Source",
+        )
+
+        ax.scatter(
+            Y[:, 0],
+            Y[:, 1],
+            s=15,
+            alpha=0.35,
+            label="Target",
+        )
+
+        # ---------------------------------------------------------------
+        # Pretrained transformer prediction
+        # ---------------------------------------------------------------
+
+        ax.scatter(
+            predicted_mean[0],
+            predicted_mean[1],
+            s=140,
+            marker="x",
+            linewidths=3,
+            label=r"Prediction $m(X_i)$",
+            zorder=10,
+        )
+
+        # ---------------------------------------------------------------
+        # Empirical target mean
+        # ---------------------------------------------------------------
+
+        ax.scatter(
+            empirical_mean[0],
+            empirical_mean[1],
+            s=130,
+            marker="o",
+            facecolors="none",
+            linewidths=2,
+            label=r"Empirical $\bar Y_i$",
+            zorder=11,
+        )
+
+        # ---------------------------------------------------------------
+        # True population mean
+        # ---------------------------------------------------------------
+
+        ax.scatter(
+            true_mean[0],
+            true_mean[1],
+            s=160,
+            marker="+",
+            linewidths=3,
+            label=r"True $B_0Z_i$",
+            zorder=12,
+        )
+
+        ax.set_title(
+            f"Training measure {i}"
+        )
+
+        ax.set_xlabel(
+            "Coordinate 1"
+        )
+
+        ax.set_ylabel(
+            "Coordinate 2"
+        )
+
+        ax.set_aspect(
+            "equal",
+            adjustable="box",
+        )
+
+        ax.grid(
+            alpha=0.2,
+        )
+
+    # Hide unused panels if fewer than four measures exist.
+    for i in range(
+        n_examples,
+        4,
+    ):
+        axes[i].axis("off")
+
+    # -----------------------------------------------------------------------
+    # Shared legend
+    # -----------------------------------------------------------------------
+
+    handles, labels = (
+        axes[0]
+        .get_legend_handles_labels()
+    )
+
+    fig.legend(
+        handles,
+        labels,
+        loc="upper center",
+        ncol=5,
+        bbox_to_anchor=(
+            0.5,
+            0.98,
+        ),
+    )
+
+    fig.suptitle(
+        "Pretrained transformer predictions on training data",
+        fontsize=15,
+    )
+
+    plt.tight_layout(
+        rect=[0, 0, 1, 0.92]
+    )
+
+    # -----------------------------------------------------------------------
+    # Save
+    # -----------------------------------------------------------------------
+
+    output_path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    fig.savefig(
+        output_path,
+        dpi=300,
+        bbox_inches="tight",
+    )
+
+    plt.close(fig)
+
+    print(
+        f"Pretrained prediction plot saved to: "
+        f"{output_path.resolve()}",
+        flush=True,
+    )
 
 # ---------------------------------------------------------------------------
 # SGD trajectory + SWA mean
@@ -483,6 +771,13 @@ def main() -> None:
     )
 
     parser.add_argument(
+        "--pretrained-prediction-figure",
+        type=Path,
+        default=None,
+        help="Output path for the pretrained prediction diagnostic plot.",
+    )
+
+    parser.add_argument(
         "--grad-clip",
         type=float,
         default=10.0,
@@ -558,12 +853,13 @@ def main() -> None:
     fixed_data = (
         load_data(
             args.fixed_data, 
-            required_keys={"source", "target", "dataset_config"},
+            required_keys={"source", "target", "latent", "dataset_config"},
             )
     )
     
     source = fixed_data["source"].float()
     target = fixed_data["target"].float()
+    latent = fixed_data["latent"].float()
     dataset_config = fixed_data["dataset_config"]
 
     print(
@@ -645,6 +941,30 @@ def main() -> None:
         grad_clip=args.grad_clip,
     )
 
+    # -----------------------------------------------------------------------
+    # Optional pretrained-model diagnostic
+    # -----------------------------------------------------------------------
+
+    if args.pretrained_prediction_figure is not None:
+        pretrained_figure_path = args.pretrained_prediction_figure
+        
+        print(
+            "\nPlotting pretrained-model predictions...",
+            flush=True,
+            )
+        
+        plot_pretrained_predictions(
+            model=model,
+            source=source,
+            target=target,
+            latent=latent,
+            B0=torch.as_tensor(
+                dataset_config["B0"],
+                dtype=torch.float32,
+            ),
+            device=device,
+            output_path=pretrained_figure_path,
+        )
     # -----------------------------------------------------------------------
     # SGD trajectory
     # -----------------------------------------------------------------------
