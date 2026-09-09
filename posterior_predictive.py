@@ -58,7 +58,7 @@ def build_subspace_model(
 def evaluate_posterior_means(
     subspace_model: SubspaceModel,
     phi_samples: torch.Tensor,
-    source_test: torch.Tensor,
+    source: torch.Tensor,
     device: torch.device,
     num_models: int | None,
     seed: int,
@@ -76,7 +76,7 @@ def evaluate_posterior_means(
     phi_samples:
         [S, K]
 
-    source_test:
+    source:
         [n_test, N, d]
 
     num_models:
@@ -103,9 +103,9 @@ def evaluate_posterior_means(
             "phi_samples must have shape [S, K]."
         )
 
-    if source_test.ndim != 3:
+    if source.ndim != 3:
         raise ValueError(
-            "source_test must have shape [n_test, N, d]."
+            "source must have shape [n_test, N, d]."
         )
 
     n_posterior = phi_samples.shape[0]
@@ -128,13 +128,13 @@ def evaluate_posterior_means(
         replace=replace,
     )
 
-    source_test = source_test.to(device)
+    source = source.to(device)
 
     posterior_means = []
 
     print(
         f"Evaluating {num_models} posterior models "
-        f"on {source_test.shape[0]} test measures...",
+        f"on {source.shape[0]} test measures...",
         flush=True,
     )
 
@@ -154,7 +154,7 @@ def evaluate_posterior_means(
         with torch.no_grad():
 
             mean = subspace_model.base_model(
-                source_test
+                source
             )
 
         posterior_means.append(
@@ -215,7 +215,7 @@ def main() -> None:
         type=Path,
         required=True,
         help=(
-            "Test-data checkpoint containing source_test and optionally "
+            "Test-data checkpoint containing source and optionally "
             "target_test and latent_test."
         ),
     )
@@ -325,7 +325,7 @@ def main() -> None:
     test_data = load_data(
         args.test_data,
         required_keys={
-            "source_test",
+            "source",
         },
     )
 
@@ -338,7 +338,7 @@ def main() -> None:
     # Test data
     # -----------------------------------------------------------------------
 
-    source_test = test_data[
+    source = test_data[
         "source"
     ].float()
 
@@ -356,7 +356,7 @@ def main() -> None:
 
     print(
         f"Test source shape : "
-        f"{tuple(source_test.shape)}",
+        f"{tuple(source.shape)}",
         flush=True,
     )
 
@@ -401,7 +401,7 @@ def main() -> None:
     ) = evaluate_posterior_means(
         subspace_model=subspace_model,
         phi_samples=phi_samples,
-        source_test=source_test,
+        source=source,
         device=device,
         num_models=args.num_predictive_models,
         seed=args.seed,
@@ -433,7 +433,7 @@ def main() -> None:
         "predictive_mean": predictive_mean,
         "predictive_std": predictive_std,
         "selected_phi_indices": phi_indices,
-        "source_test": source_test,
+        "source": source,
         "target_test": target_test,
         "latent_test": latent_test,
         "pca_checkpoint": str(
@@ -464,7 +464,7 @@ def main() -> None:
             predictive_std.shape
         ),
         "num_test_measures": int(
-            source_test.shape[0]
+            source.shape[0]
         ),
         "num_posterior_models": int(
             posterior_means.shape[0]
