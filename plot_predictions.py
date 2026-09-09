@@ -563,8 +563,6 @@ def plot_predictive_df_sweep(
             f"Saved: {output_path}",
             flush=True,
         )
-        
-        plt.show()
 
         plt.close(fig)
 
